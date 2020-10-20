@@ -1,0 +1,475 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: ConfigHub API
+security:
+  - bearerAuth: []
+paths:
+
+  /info:
+    get:
+      operationId: getRepositoryInfo
+      summary: Get repository info
+      description: Gets information about a specific repository. It allows for glob syntax search of configuration files, and context definition.
+      tags:
+        - info
+      parameters:
+        - $ref: '#/components/parameters/RepositoryDate'
+        - $ref: '#/components/parameters/Tag'
+        - $ref: '#/components/parameters/ClientVersion'
+        - $ref: '#/components/parameters/Pretty'
+        - name: Files
+          in: header
+          description: Boolean flag to indicate if all files should be returned. If Files-Glob header is specified, this flag is ignored and treated true by default.
+          schema:
+            type: boolean
+        - name: Files-Glob
+          in: header
+          description: Enables glob expressions while searching for files over their path and name.
+          schema:
+            type: string
+        - name: Context-Elements
+          in: header
+          description: Boolean flag to indicate if all context elements should be returned. If Context-Labels header is specified, this flag is ignored and treated true by default.
+          schema:
+            type: boolean
+        - name: Context-Labels
+          in: header
+          description: Limit context elements returned by the list of context labels. Comma delimited list of context labels.
+          schema:
+            type: string
+            example: label1,label2,label3...
+      responses:
+        "200":
+          description: Returned repository info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepositorySpecificInfo"
+
+  /info/all:
+    get:
+      operationId: listRepositoriesInfo
+      summary: List all respositories info
+      description: Lists full details of settings for all defined repositories.
+      tags:
+        - info
+      parameters:
+        - $ref: '#/components/parameters/ClientVersion'
+        - $ref: '#/components/parameters/Pretty'
+      responses:
+        "200":
+          description: List of all respositories info
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RepositoryOverallInfo'
+
+  /info/system:
+    get:
+      operationId: getSystemInfo
+      summary: Get system info
+      description: Gets details of ConfigHub License and version
+      tags:
+        - info
+      parameters:
+        - $ref: '#/components/parameters/ClientVersion'
+        - $ref: '#/components/parameters/Pretty'
+      responses:
+        "200":
+          description: A category list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInfo"
+
+  /pull:
+    get:
+      operationId: getConfig
+      summary: Get config
+      description: Gets configuration from ConfigHub service with specified context
+      tags:
+        - config
+      parameters:
+        - $ref: '#/components/parameters/ClientVersion'
+        - $ref: '#/components/parameters/ApplicationName'
+        - $ref: '#/components/parameters/Context'
+        - $ref: '#/components/parameters/SecurityProfileAuth'
+        - $ref: '#/components/parameters/Pretty'
+        - $ref: '#/components/parameters/RepositoryDate'        
+        - $ref: '#/components/parameters/Tag'
+        - name: Include-Comments
+          in: header
+          description: If value is true response includes comments for property keys.
+          schema:
+            type: boolean
+        - name: Include-Value-Context
+          in: header
+          description: If value is true response includes context of resolved property values.
+          schema:
+            type: boolean
+        - name: No-Properties
+          in: header
+          description: If value is true key-value pairs are not returned. This is useful if you are only interested in pulling files, and want to make transaction more efficient.
+          schema:
+            type: boolean
+        - name: No-Files
+          in: header
+          description: If value is true resolved files are not returned. This is useful if you are only interested in pulling properties, and want to make transaction more efficient.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Config data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PulledConfigData"
+  
+  /push:
+    post:
+      operationId: updateConfig
+      summary: Update config
+      description: Updates new or modified config(s) and/or file(s) to ConfigHub service
+      tags:
+        - config
+      parameters:
+        - $ref: '#/components/parameters/ClientVersion'
+        - $ref: '#/components/parameters/ApplicationName'
+      requestBody:
+        $ref: "#/components/requestBodies/PushRequest"
+      responses:
+        "200":
+          description: Successful response.
+        "304":
+          description: Error response. Content not modified.
+
+  /rawFile:
+    get:
+      operationId: getSingleFile
+      summary: Get single file
+      description: With fully specified context, pull a specific file from ConfigHub service. The response contains raw, resolved configuration file.
+      tags:
+        - file
+      parameters:
+        - $ref: '#/components/parameters/ClientVersion'
+        - $ref: '#/components/parameters/ApplicationName'
+        - $ref: '#/components/parameters/Context'
+        - $ref: '#/components/parameters/SecurityProfileAuth'
+        - $ref: '#/components/parameters/RepositoryDate'
+        - $ref: '#/components/parameters/Tag'
+      responses:
+        "200":
+          description: Raw configuration file data
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  requestBodies:
+    PushRequest:
+      content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushedConfigData"
+
+  parameters:
+    ClientVersion:
+      name: Client-Version
+      in: header
+      description: Version of the client API. If not specified, ConfigHub assumes the latest version. Even through this is not a required parameter, you are encouraged to specify a version.
+      schema:
+        type: string
+        example: v1.2.0
+
+    ApplicationName:
+      name: Application-Name
+      required: true
+      in: header
+      description: This field helps you identify application or a client pulling configuration. Visible in Pull Request tab.
+      schema:
+        type: string
+
+    Context:  
+      name: Context
+      required: true
+      in: header
+      description: Context for the pull request has to be a fully-qualified-context (each context rank has to be specified - no wildcards). Context items are semi-colon delimited, and have to be in context rank order.
+      schema:
+        type: string
+        example: Production;MyApp;MyAppInstance
+
+    SecurityProfileAuth:
+      name: Security-Profile-Auth
+      in: header
+      description: If a repository is enabled for and uses Security-Profiles (SP) with encryption, choose any of several ways to decrypt resolved property values.
+      schema:
+        type: string
+        example: { 'Security-Profile_1':'password', 'Security-Profile_2':'password',... }
+
+    Pretty:
+      name: Pretty
+      in: header
+      description: If value is true, returned JSON is ‘pretty’ - formatted.
+      schema:
+        type: boolean
+
+    RepositoryDate:
+      name: Repository-Date
+      in: header
+      description: ISO 8601 date format (UTC) YYYY-MM-DDTHH:MM:SSZ lets you specify a point in time for which to pull configuration. If not specified, latest configuration is returned.
+      schema:
+        type: string
+        format: date-time
+
+    Tag:
+      name: Tag
+      in: header
+      description: Name of the defined tag. Returned configuration is for a point in time as specified by the tag. If both Tag and Repository-Date headers are specified, Repository-Date is only used if the tag is no longer available.
+      schema:
+        type: string
+
+  schemas:
+
+    SystemInfo:
+      type: object
+      properties:
+        version:
+          $ref: "#/components/schemas/Version"
+        license:
+          $ref: "#/components/schemas/License"
+
+    RepositoryOverallInfo:
+      type: object
+      properties:
+        account:
+          type: string
+        name:
+          type: string
+        isPrivate:
+          type: boolean
+        isPersonal:
+          type: boolean
+        description:
+          type: string
+        created:
+          type: string
+          format: date-time
+        accessControlsEnabled:
+          type: boolean
+        vdtEnabled:
+          type: boolean
+        securityEnabled:
+          type: boolean
+        contextGroupsEnabled:
+          type: boolean
+        keyCount:
+          type: integer
+        valueCount:
+          type: integer
+        userCount:
+          type: integer
+        context:
+          type: array
+          items:
+            type: string
+
+    RepositorySpecificInfo:
+      type: object
+      properties:
+        account:
+          type: string
+        repository:
+          type: string
+        generatedOn:
+          type: string
+        context:
+          type: array
+          items:
+            type: string
+        contextElements:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ContextElement"
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/RepositoryFile'
+
+    ContextElement:
+      type: array
+      items:
+        type: string
+
+    RepositoryFile:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        lastModified:
+          type: string
+
+    Version:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: string
+
+    License:
+      type: object
+      additionalProperties:
+        type: string
+
+    PulledConfigData:
+      type: object
+      properties:
+        generatedOn:
+          type: string
+          format: datetime
+        account:
+          type: string
+        repo:
+          type: string
+        context:
+          type: string
+        files:
+          $ref: "#/components/schemas/PulledFiles"
+        properties:
+          $ref: "#/components/schemas/PulledProperties"
+
+    PulledFiles:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/PulledFile"
+
+    PulledFile:
+      type: object
+      properties:
+        content:
+          type: string
+          format: binary
+        "content-type":
+          type: string
+
+    PulledProperties:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/PulledProperty"
+
+    PushedConfigData:
+      type: object
+      required:
+        - changeComment
+        - enableKeyCreation
+        - data
+      properties:
+        changeComment:
+          type: string
+        enableKeyCreation:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PushedProperty'
+
+    PulledProperty:
+      type: object
+      required:
+        - val
+      properties:
+        val:
+          type: string
+        type:
+          $ref: "#/components/schemas/PropertyType"
+        comment:
+          type: string
+
+    PushedProperty:
+      type: object
+      required:
+        - key
+        - vdt
+        - push
+        - values
+      properties:
+        key:
+          type: string
+        readme:
+          type: string
+        deprecated:
+          type: boolean
+        vdt:
+          $ref: "#/components/schemas/PropertyType"
+        push:
+          type: boolean
+        securityGroup:
+          type: string
+        password:
+          type: string
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/PushedPropertyValue"
+
+    PushedFile:
+      type: object
+      required:
+        - file
+        - context
+        - content
+      properties:
+        file:
+          type: string
+        context:
+          type: string
+        content:
+          type: string
+          format: binary
+
+    PushedPropertyValue:
+      type: object
+      required:
+        - context
+        - value
+        - active
+      properties:
+        context:
+          type: string
+        value:
+          type: string
+        active:
+          type: boolean
+    
+    PropertyType:
+      type: string
+      enum:
+        - Integer
+        - Boolean
+        - Text
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
