@@ -461,6 +461,7 @@ components:
         - Integer
         - Boolean
         - Text
+        - List
 
     Error:
       type: object
