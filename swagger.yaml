@@ -396,6 +396,10 @@ components:
           type: string
         type:
           $ref: "#/components/schemas/PropertyType"
+        context:
+          type: array
+          items:
+            type: string
         comment:
           type: string
 
@@ -454,6 +458,9 @@ components:
           type: string
         active:
           type: boolean
+        opp:
+          type: string
+          enum: [delete]
     
     PropertyType:
       type: string
